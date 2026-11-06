@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Find the Other Five</title>
+<style>
+:root{
+  --paper:#fbf8f1; --ink:#1d2433; --muted:#5b6475; --grid:#e6edf6; --line:#cfd8e6;
+  --accent:#d9366e; --accent-soft:#fbe3ec; --card:#ffffff;
+  --ok:#0d7f6f; --ok-soft:#dff3ee; --warn:#9a5c00; --warn-soft:#fdf0d9; --bad:#b9352a; --bad-soft:#fbe4e1;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14171f; --ink:#e9edf5; --muted:#a2abbd; --grid:#1b2030; --line:#2e3547;
+    --accent:#ff6b9c; --accent-soft:#3a1d2a; --card:#1b1f2a;
+    --ok:#4fd1b5; --ok-soft:#123129; --warn:#f0b450; --warn-soft:#3a2c12; --bad:#ff7a6b; --bad-soft:#3a1a17;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;
+  color:var(--ink);
+  font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+.wrap{max-width:1040px;margin:0 auto;padding:20px 16px 60px}
+header h1{font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;font-size:clamp(30px,6vw,46px);line-height:1.05;margin:8px 0 6px;letter-spacing:-.5px}
+header h1 em{color:var(--accent);font-style:italic}
+header p{margin:0;color:var(--muted);max-width:640px}
+.m,.math{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif;font-size:1.08em;white-space:nowrap}
+.frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.92em;line-height:1.1;margin:0 2px}
+.frac>span:first-child{border-bottom:1.5px solid currentColor;padding:0 3px}
+.frac>span:last-child{padding:0 3px}
+.rad{white-space:nowrap}.rad>span{border-top:1.5px solid currentColor;padding-left:1px}
+
+nav.tabs{position:sticky;top:0;z-index:5;display:flex;gap:6px;flex-wrap:wrap;margin:18px -16px 18px;padding:10px 16px;background:var(--paper);border-bottom:1px solid var(--line)}
+nav.tabs button{font:inherit;font-weight:600;border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+nav.tabs button .tick{color:var(--ok);margin-left:4px}
+nav.tabs button[aria-selected="true"] .tick{color:var(--paper)}
+
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:18px 18px}
+.card h2,.card h3{margin:0 0 8px}
+h2{font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;font-size:26px}
+h3{font-size:17px}
+.muted{color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.stack>*+*{margin-top:14px}
+
+.recipe{counter-reset:r;list-style:none;padding:0;margin:0}
+.recipe li{counter-increment:r;position:relative;padding:4px 0 10px 46px}
+.recipe li::before{content:counter(r);position:absolute;left:0;top:2px;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;display:grid;place-items:center}
+.recipe b{display:block}
+
+table.ratios{border-collapse:collapse;width:100%}
+table.ratios td{padding:6px 8px;border-bottom:1px solid var(--line)}
+table.ratios td:first-child{font-weight:600}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:.9em}
+.mistakes li{margin-bottom:6px}
+
+svg text{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif;fill:var(--ink)}
+.plane .axis{stroke:var(--ink);stroke-width:1.4}
+.plane .gl{stroke:var(--grid);stroke-width:1}
+.plane .q{fill:transparent;cursor:pointer;transition:fill .15s}
+.plane .q:hover{fill:var(--accent-soft)}
+.plane.locked .q{cursor:default}
+.plane.locked .q:hover{fill:transparent}
+.plane .q.on{fill:var(--accent-soft)}
+.plane .q.no{fill:var(--bad-soft)}
+.plane .qlab{fill:var(--muted);font-size:15px;font-family:system-ui,sans-serif;font-weight:600;pointer-events:none}
+.plane .tri{fill:var(--accent);fill-opacity:.16;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+.plane .ra{fill:none;stroke:var(--accent);stroke-width:1.3}
+.plane .arc{fill:none;stroke:var(--ink);stroke-width:1.2}
+.plane .lab{font-size:12px;font-weight:700;pointer-events:none}
+.plane .lab.unk{fill:var(--muted)}
+
+.prob-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:14px}
+.prob-head h2{margin:0}
+.given{font-size:21px}
+.prob-grid{display:grid;grid-template-columns:minmax(260px,380px) 1fr;gap:16px;align-items:start}
+@media (max-width:760px){.prob-grid{grid-template-columns:1fr}}
+.plane-card{position:sticky;top:70px}
+@media (max-width:760px){.plane-card{position:static}}
+.plane-card svg{width:100%;height:auto;display:block}
+.plane-card .cap{font-size:14px;color:var(--muted);margin:8px 2px 0}
+
+.step{position:relative}
+.step.locked{opacity:.45;pointer-events:none}
+.step h3{display:flex;align-items:center;gap:10px}
+.step h3 .n{width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:14px;flex:none}
+.step.done h3 .n{background:var(--ok)}
+.qbtns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+button.btn{font:inherit;font-weight:600;border:1.5px solid var(--ink);background:var(--card);color:var(--ink);padding:6px 14px;border-radius:9px;cursor:pointer}
+button.btn.primary{background:var(--ink);color:var(--paper)}
+button.btn.ghost{border-color:var(--line);font-weight:500}
+button.btn:disabled{opacity:.5;cursor:default}
+button.linkish{font:inherit;font-size:13px;background:none;border:0;padding:0;color:var(--accent);cursor:pointer;text-decoration:underline}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.fb{margin-top:8px;padding:8px 11px;border-radius:9px;font-size:15px}
+.fb:empty{display:none}
+.fb.ok{background:var(--ok-soft);color:var(--ok)}
+.fb.note{background:var(--ok-soft);color:var(--ok)}
+.fb.almost{background:var(--warn-soft);color:var(--warn)}
+.fb.bad{background:var(--bad-soft);color:var(--bad)}
+.explain{margin-top:10px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 9px 9px 0;font-size:15px}
+.explain:empty{display:none}
+.explain p{margin:0 0 6px}.explain p:last-child{margin:0}
+
+.fields{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.fns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+@media (max-width:480px){.fields{grid-template-columns:1fr}.fns{grid-template-columns:1fr}}
+.field{border:1.5px solid var(--line);border-radius:11px;padding:8px 10px;background:var(--card)}
+.field.ok{border-color:var(--ok)}
+.field.almost{border-color:var(--warn)}
+.field.bad{border-color:var(--bad)}
+.field label{display:flex;justify-content:space-between;align-items:baseline;font-weight:700;gap:6px}
+.field label small{font-weight:500;color:var(--muted)}
+.field input{width:100%;font:inherit;font-size:18px;padding:6px 8px;margin-top:4px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);font-family:"Cambria Math","STIX Two Math","Times New Roman",serif}
+.field input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.field.ok input{background:var(--ok-soft)}
+.field .given-val{font-size:20px;padding:6px 2px}
+.field .fb{margin-top:6px;font-size:14px;padding:6px 8px}
+.field .work{font-size:14px;margin-top:6px;color:var(--muted)}
+.field .work:empty{display:none}
+.keys{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.keys button{font:inherit;font-size:18px;min-width:42px;padding:4px 10px;border-radius:8px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.keys span{font-size:13px;color:var(--muted)}
+.paper{border:2px dashed var(--ok);background:var(--ok-soft)}
+.paper ul{margin:8px 0 0;padding-left:20px;columns:2}
+@media (max-width:480px){.paper ul{columns:1}}
+.paper li{margin-bottom:6px}
+.hidden{display:none!important}
+.astc-info{min-height:84px}
+footer{margin-top:30px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p class="muted">Trig helper · worksheet problems 4 to 7</p>
+  <h1>Find the <em>other five</em>.</h1>
+  <p>You get one trig value and one clue about where θ is. Your job is the other five values. It's the same four moves every single time, and once you see them, this whole sheet is maybe 15 minutes.</p>
+</header>
+
+<nav class="tabs" id="tabs" aria-label="Sections"></nav>
+
+<main id="views">
+<section id="view-learn" class="stack">
+  <div class="card">
+    <h2>The four moves</h2>
+    <ol class="recipe">
+      <li><b>Find the quadrant.</b>The sign of the value you're given narrows it to two quadrants. The clue after the comma picks one.</li>
+      <li><b>Draw the triangle.</b>Put a right triangle in that quadrant. Read two sides straight off the fraction you were given, and give them the right signs for that quadrant.</li>
+      <li><b>Find the missing side.</b>Pythagoras: <span class="m">x² + y² = r²</span>. Then pick + or − for it based on the quadrant.</li>
+      <li><b>Read off all six.</b>Each trig function is just one side over another. Rationalize if there's a √ on the bottom.</li>
+    </ol>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Every side has a name</h3>
+      <svg viewBox="-20 -120 220 150" style="width:100%;max-width:300px;display:block;margin:0 auto" aria-label="Right triangle with x along the bottom, y going up, r as the slanted side">
+        <line x1="-10" y1="0" x2="195" y2="0" stroke="currentColor" stroke-width="1.2" opacity=".5"/>
+        <path d="M0,0 L160,0 L160,-100 Z" fill="var(--accent)" fill-opacity=".16" stroke="var(--accent)" stroke-width="2"/>
+        <path d="M150,0 L150,-10 L160,-10" fill="none" stroke="var(--accent)" stroke-width="1.3"/>
+        <path d="M24,0 A24,24 0 0 0 20.35,-12.72" fill="none" stroke="currentColor"/>
+        <text x="30" y="-6" font-size="14">θ</text>
+        <text x="72" y="20" font-size="15" font-weight="700">x</text>
+        <text x="168" y="-45" font-size="15" font-weight="700">y</text>
+        <text x="66" y="-62" font-size="15" font-weight="700">r</text>
+      </svg>
+      <p><b>x</b> is how far left or right (can be negative). <b>y</b> is how far up or down (can be negative). <b>r</b> is the slanted side, the distance from the center, so <b>r is never negative</b>.</p>
+    </div>
+    <div class="card">
+      <h3>The six ratios</h3>
+      <table class="ratios">
+        <tr><td>sin θ</td><td><span class="m"><span class="frac"><span>y</span><span>r</span></span></span></td><td>csc θ</td><td><span class="m"><span class="frac"><span>r</span><span>y</span></span></span></td></tr>
+        <tr><td>cos θ</td><td><span class="m"><span class="frac"><span>x</span><span>r</span></span></span></td><td>sec θ</td><td><span class="m"><span class="frac"><span>r</span><span>x</span></span></span></td></tr>
+        <tr><td>tan θ</td><td><span class="m"><span class="frac"><span>y</span><span>x</span></span></span></td><td>cot θ</td><td><span class="m"><span class="frac"><span>x</span><span>y</span></span></span></td></tr>
+      </table>
+      <p class="muted" style="margin-bottom:0">The right column is the left column flipped. Learn three, get six. (SOH CAH TOA is the same thing: opposite is y, adjacent is x, hypotenuse is r.)</p>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Which ones are positive where? Tap a quadrant.</h3>
+      <svg id="astc" class="plane" viewBox="-120 -120 240 240" style="width:100%;max-width:280px;display:block;margin:0 auto"></svg>
+      <div class="astc-info" id="astc-info"><p class="muted">Memory trick, going counterclockwise from top right: <b>A</b>ll <b>S</b>tudents <b>T</b>ake <b>C</b>alculus. All positive, then Sin, then Tan, then Cos (and their flips).</p></div>
+    </div>
+    <div class="card">
+      <h3>Two small things teachers check</h3>
+      <p><b>Exact answers.</b> Fractions and √, never decimals. <span class="m">−<span class="frac"><span>3</span><span>5</span></span></span>, not −0.6.</p>
+      <p><b>No √ on the bottom.</b> If you get <span class="m"><span class="frac"><span>1</span><span>√15</span></span></span>, multiply top and bottom by √15:
+        <span class="m"><span class="frac"><span>1·√15</span><span>√15·√15</span></span> = <span class="frac"><span>√15</span><span>15</span></span></span>. Same number, cleaner form.</p>
+      <h3 style="margin-top:14px">Mistakes that cost points</h3>
+      <ul class="mistakes" style="padding-left:20px;margin:0">
+        <li>Making r negative. The minus sign always goes on x or y.</li>
+        <li>Forgetting the sign on the side you found with Pythagoras. √ gives you the size, the quadrant gives you the sign.</li>
+        <li>Flipping a ratio (writing r/x when it's cos).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>How to use this</h3>
+    <p style="margin:0">Pick a problem up top. Each one walks you through the four moves, checks your answers as you go, and tells you <i>why</i> when something's off. Stuck? Hit <b>Hint</b> first, <b>Show me</b> second. Then do <b>Practice</b> until you can do one without hints, because the quiz won't have this page.</p>
+    <div class="row"><button class="btn primary" data-goto="p4">Start with #4 →</button></div>
+  </div>
+</section>
+</main>
+
+<footer>Made by Nova, Nov 5, 2026. Works offline. Nothing you type leaves this page.</footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- math helpers ---------- */
+const FN = {sin:['y','r'],cos:['x','r'],tan:['y','x'],csc:['r','y'],sec:['r','x'],cot:['x','y']};
+const RECIP = {sin:'csc',csc:'sin',cos:'sec',sec:'cos',tan:'cot',cot:'tan'};
+const ORDER = ['sin','csc','cos','sec','tan','cot'];
+const QX = {1:1,2:-1,3:-1,4:1}, QY = {1:1,2:1,3:-1,4:-1};
+const ROMAN = ['','I','II','III','IV'];
+const qname = q => 'Q ' + ROMAN[q];
+const qlist = qs => qs.map(qname).join(' and ');
+
+const sgnL = (l,q) => l==='r' ? 1 : l==='x' ? QX[q] : QY[q];
+const fnSign = (fn,q) => sgnL(FN[fn][0],q) * sgnL(FN[fn][1],q);
+const quadsWhere = (fn,pos) => [1,2,3,4].filter(q => (fnSign(fn,q) > 0) === pos);
+
+function gcd(a,b){a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b];}return a;}
+function simpRad(n){let k=1,m=n;for(let i=2;i*i<=m;i++){while(m%(i*i)===0){m/=i*i;k*=i;}}return [k,m];}
+const sideVal = s => s.c*Math.sqrt(s.rad);
+const sideSq = s => s.c*s.c*s.rad;
+function ratio(a,b){
+  const [k,m] = simpRad(a.rad*b.rad);
+  let num = a.c*k, den = b.c*b.rad;
+  if (den < 0){ num=-num; den=-den; }
+  const g = gcd(num,den);
+  return {num:num/g, rad:m, den:den/g};
+}
+const rVal = R => R.num*Math.sqrt(R.rad)/R.den;
+const MINUS = '−';
+function radHTML(c,rad){ const a=Math.abs(c); if(rad===1) return String(a); return (a===1?'':a)+'<span class="rad">√<span>'+rad+'</span></span>'; }
+function radText(c,rad){ const a=Math.abs(c); if(rad===1) return String(a); return (a===1?'':a)+'√'+rad; }
+function fmtHTML(R){
+  const s = R.num<0 ? MINUS : '';
+  if (R.den===1) return '<span class="m">'+s+radHTML(R.num,R.rad)+'</span>';
+  return '<span class="m">'+s+'<span class="frac"><span>'+radHTML(R.num,R.rad)+'</span><span>'+R.den+'</span></span></span>';
+}
+const fmtText = R => (R.num<0?MINUS:'') + radText(R.num,R.rad) + (R.den===1?'':'/'+R.den);
+const sideHTML = s => '<span class="m">'+(s.c<0?MINUS:'')+radHTML(s.c,s.rad)+'</span>';
+const sideText = s => (s.c<0?MINUS:'')+radText(s.c,s.rad);
+const fracHTML = (a,b) => '<span class="m"><span class="frac"><span>'+a+'</span><span>'+b+'</span></span></span>';
+
+/* safe little parser: numbers, + - * / ^, ( ), √ or sqrt, implicit multiply like 4√15 */
+function normalize(str){
+  return String(str).trim().toLowerCase()
+    .replace(/[−–—]/g,'-').replace(/[×·]/g,'*').replace(/÷/g,'/')
+    .replace(/sqrt/g,'√').replace(/\s+/g,'');
+}
+function parseExpr(str){
+  const s = normalize(str);
+  if (!s) return null;
+  let i = 0;
+  const peek = () => s[i];
+  function expr(){ let v=term(); while(peek()==='+'||peek()==='-'){ const op=s[i++]; const t=term(); v = op==='+'?v+t:v-t; } return v; }
+  function term(){ let v=factor(); for(;;){ const c=peek(); if(c==='*'||c==='/'){ i++; const f=factor(); v = c==='*'?v*f:v/f; } else if(c==='√'||c==='('){ v*=factor(); } else break; } return v; }
+  function factor(){ const c=peek(); if(c==='-'){ i++; return -factor(); } if(c==='+'){ i++; return factor(); } return power(); }
+  function power(){ let b=atom(); if(peek()==='^'){ i++; b=Math.pow(b,factor()); } return b; }
+  function atom(){
+    const c=peek();
+    if(c==='('){ i++; const v=expr(); if(peek()!==')') throw 0; i++; return v; }
+    if(c==='√'){ i++; return Math.sqrt(atom()); }
+    const m=/^\d*\.?\d+/.exec(s.slice(i)); if(!m) throw 0; i+=m[0].length; return parseFloat(m[0]);
+  }
+  try { const v=expr(); if(i!==s.length) return null; return Number.isFinite(v)?v:null; } catch(e){ return null; }
+}
+const close = (a,b) => Math.abs(a-b) < 1e-9*Math.max(1,Math.abs(b));
+const hasDecimal = str => /\./.test(normalize(str));
+const unrationalized = str => /\/\(?[-+]?\d*√/.test(normalize(str));
+
+/* ---------- problems ---------- */
+const IV = {
+  q1:{q:[1],html:'0 &lt; θ &lt; '+fracHTML('π','2')},
+  q2:{q:[2],html:fracHTML('π','2')+' &lt; θ &lt; π'},
+  q3:{q:[3],html:'π &lt; θ &lt; '+fracHTML('3π','2')},
+  q4:{q:[4],html:fracHTML('3π','2')+' &lt; θ &lt; 2π'},
+  top:{q:[1,2],html:'0 &lt; θ &lt; π'},
+  bot:{q:[3,4],html:'π &lt; θ &lt; 2π'}
+};
+const S = (c,rad=1) => ({c,rad});
+const WORKSHEET = [
+  {id:'p4',label:'#4',q:4,x:S(4),y:S(-3),r:S(5),given:'tan',clue:{type:'interval',...IV.q4}},
+  {id:'p5',label:'#5',q:3,x:S(-1,15),y:S(-1),r:S(4),given:'csc',clue:{type:'sign',fn:'tan',pos:true}},
+  {id:'p6',label:'#6',q:2,x:S(-1),y:S(1,3),r:S(2),given:'sec',clue:{type:'interval',...IV.top}},
+  {id:'p7',label:'#7',q:2,x:S(-4),y:S(3),r:S(5),given:'sin',clue:{type:'sign',fn:'cot',pos:false}}
+];
+const clueQuads = c => c.type==='interval' ? c.q : quadsWhere(c.fn,c.pos);
+const clueHTML = c => c.type==='interval' ? '<span class="m">'+c.html+'</span>' : '<span class="m">'+c.fn+' θ '+(c.pos?'&gt;':'&lt;')+' 0</span>';
+
+const TRIS = [
+  [S(3),S(4),S(5)],[S(5),S(12),S(13)],[S(8),S(15),S(17)],[S(7),S(24),S(25)],
+  [S(1),S(1,3),S(2)],[S(1),S(1),S(1,2)],[S(1),S(1,15),S(4)],[S(2),S(1,5),S(3)],
+  [S(1),S(2),S(1,5)],[S(1),S(2,2),S(3)],[S(3),S(1,7),S(4)],[S(2),S(1,21),S(5)]
+];
+const pick = a => a[Math.floor(Math.random()*a.length)];
+let practiceCount = 0;
+function makePractice(){
+  for (let tries=0; tries<200; tries++){
+    const t = pick(TRIS);
+    const [a,b] = Math.random()<.5 ? [t[0],t[1]] : [t[1],t[0]];
+    const q = 1+Math.floor(Math.random()*4);
+    const P = {x:S(QX[q]*a.c,a.rad), y:S(QY[q]*b.c,b.rad), r:t[2], q};
+    const okFns = ORDER.filter(f => P[FN[f][0]].rad===1 && P[FN[f][1]].rad===1);
+    if (!okFns.length) continue;
+    P.given = pick(okFns);
+    const gPos = rVal(ratio(P[FN[P.given][0]],P[FN[P.given][1]])) > 0;
+    const gq = quadsWhere(P.given,gPos);
+    const cands = [];
+    Object.values(IV).forEach(v => cands.push({type:'interval',...v}));
+    ORDER.forEach(f => { if (f!==P.given && f!==RECIP[P.given]) cands.push({type:'sign',fn:f,pos:fnSign(f,q)>0}); });
+    const valid = cands.filter(c => { const cq=clueQuads(c); const both=cq.filter(x=>gq.includes(x)); return both.length===1 && both[0]===q; });
+    if (!valid.length) continue;
+    P.clue = pick(valid);
+    practiceCount++;
+    P.id = 'pr'+practiceCount; P.label = 'Practice';
+    return P;
+  }
+}
+
+/* ---------- plane drawing ---------- */
+function planeSVG(P, st, opts){
+  const o = opts||{};
+  let h = '';
+  for (let g=-100; g<=100; g+=20) if (g) h += '<line class="gl" x1="'+g+'" y1="-115" x2="'+g+'" y2="115"/><line class="gl" x1="-115" y1="'+g+'" x2="115" y2="'+g+'"/>';
+  const rects = {1:[0,-115],2:[-115,-115],3:[-115,0],4:[0,0]};
+  for (const q of [1,2,3,4]){
+    const [rx,ry] = rects[q];
+    let cls = 'q';
+    if (st && st.quad && P.q===q) cls += ' on';
+    if (st && st.wrongQ===q) cls += ' no';
+    if (o.sel===q) cls += ' on';
+    h += '<rect class="'+cls+'" data-q="'+q+'" x="'+rx+'" y="'+ry+'" width="115" height="115"><title>Quadrant '+ROMAN[q]+'</title></rect>';
+  }
+  h += '<line class="axis" x1="-115" y1="0" x2="115" y2="0"/><line class="axis" x1="0" y1="-115" x2="0" y2="115"/>';
+  h += '<text x="106" y="-6" font-size="13" font-style="italic">x</text><text x="6" y="-104" font-size="13" font-style="italic">y</text>';
+  const showTri = P && st && st.quad;
+  if (!showTri){
+    for (const q of [1,2,3,4]) h += '<text class="qlab" text-anchor="middle" x="'+(QX[q]*58)+'" y="'+(-QY[q]*58+5)+'">'+ROMAN[q]+'</text>';
+    if (o.astc) {
+      const tag = {1:'All',2:'Sin',3:'Tan',4:'Cos'};
+      for (const q of [1,2,3,4]) h += '<text class="qlab" text-anchor="middle" x="'+(QX[q]*58)+'" y="'+(-QY[q]*58+24)+'" style="font-size:12px;font-weight:500">'+tag[q]+'</text>';
+    }
+    return h;
+  }
+  const xv = sideVal(P.x), yv = sideVal(P.y);
+  const sc = 82/Math.max(Math.abs(xv),Math.abs(yv));
+  const X = xv*sc, Y = -yv*sc;
+  const sx = Math.sign(X), sy = Math.sign(Y);
+  h += '<text class="qlab" text-anchor="middle" x="'+(QX[P.q]*92)+'" y="'+(-QY[P.q]*100+5)+'">'+qname(P.q)+'</text>';
+  h += '<path class="tri" d="M0,0 L'+X+',0 L'+X+','+Y+' Z"/>';
+  const m = 8;
+  h += '<path class="ra" d="M'+(X-sx*m)+',0 L'+(X-sx*m)+','+(sy*m)+' L'+X+','+(sy*m)+'"/>';
+  // standard position angle
+  let th = Math.atan2(yv,xv); if (th<0) th += 2*Math.PI;
+  const R = 15, ex = R*Math.cos(th), ey = -R*Math.sin(th);
+  h += '<path class="arc" d="M'+R+',0 A'+R+','+R+' 0 '+(th>Math.PI?1:0)+' 0 '+ex.toFixed(2)+','+ey.toFixed(2)+'"/>';
+  h += '<text x="'+(27*Math.cos(th/2)-4).toFixed(1)+'" y="'+(-27*Math.sin(th/2)+4).toFixed(1)+'" font-size="12">θ</text>';
+  const known = st.sides;
+  const lab = (k) => known[k] ? sideText(P[k]) : k+' = ?';
+  // x label on the axis side away from the triangle
+  h += '<text class="lab'+(known.x?'':' unk')+'" text-anchor="middle" x="'+(X/2)+'" y="'+(sy<0?16:-7)+'">'+lab('x')+'</text>';
+  h += '<text class="lab'+(known.y?'':' unk')+'" text-anchor="'+(sx>0?'start':'end')+'" x="'+(X+sx*6)+'" y="'+(Y/2+4)+'">'+lab('y')+'</text>';
+  // r label pushed off the hypotenuse, away from the right angle
+  const len = Math.hypot(X,Y);
+  let nx = -Y/len, ny = X/len;
+  if (nx*(X/2) + ny*(-Y/2) > 0){ nx=-nx; ny=-ny; }
+  h += '<text class="lab'+(known.r?'':' unk')+'" text-anchor="middle" x="'+(X/2+nx*14).toFixed(1)+'" y="'+(Y/2+ny*14+4).toFixed(1)+'">'+lab('r')+'</text>';
+  return h;
+}
+
+/* ---------- answer checking ---------- */
+function checkFn(raw, fn, P){
+  const R = ratio(P[FN[fn][0]], P[FN[fn][1]]);
+  const target = rVal(R);
+  const v = parseExpr(raw);
+  if (v===null) return {st:'bad', msg:'I can\'t read that one. Type it like -3/5 or -√15/4 (the √ button is below).'};
+  if (close(v,target)){
+    if (hasDecimal(raw)) return {st:'almost', msg:'Right value, but the sheet wants exact. Write it as '+fmtText(R)+'.'};
+    if (unrationalized(raw)) return {st:'note', msg:'Correct. Most teachers want the √ off the bottom though, so write '+fmtText(R)+'.'};
+    return {st:'ok', msg:'Yes.'};
+  }
+  if (close(-v,target)) return {st:'bad', msg:'Right number, wrong sign. In '+qname(P.q)+', '+fn+' is '+(target>0?'positive':'negative')+'.'};
+  if (hasDecimal(raw) && Math.abs(v-target) < 0.01) return {st:'almost', msg:'Close, but that\'s a rounded decimal. The sheet wants exact, with fractions and √.'};
+  if (close(v,1/target)) return {st:'bad', msg:'That\'s flipped. '+fn+' θ = '+FN[fn][0]+'/'+FN[fn][1]+'.'};
+  if (close(-v,1/target)) return {st:'bad', msg:'Flipped and the sign is off. '+fn+' θ = '+FN[fn][0]+'/'+FN[fn][1]+', and it\'s '+(target>0?'positive':'negative')+' in '+qname(P.q)+'.'};
+  return {st:'bad', msg:'Not yet. '+fn+' θ = '+FN[fn][0]+'/'+FN[fn][1]+'. Plug in your x, y and r.'};
+}
+function checkSide(raw, k, P){
+  const target = sideVal(P[k]);
+  const v = parseExpr(raw);
+  if (v===null) return {st:'bad', msg:'Can\'t read that. Try 4, -3, or √15.'};
+  if (close(v,target)) return hasDecimal(raw) ? {st:'almost', msg:'Right size, but keep it exact: '+sideText(P[k])+'.'} : {st:'ok', msg:'Yes.'};
+  if (close(-v,target)) return k==='r' ? {st:'bad', msg:'r is a distance, so it\'s never negative.'} :
+    {st:'bad', msg:'Right size, wrong sign. In '+qname(P.q)+', '+k+' is '+(target>0?'positive':'negative')+'.'};
+  return {st:'bad', msg: (k===missingSide(P)) ? 'Not yet. Use x² + y² = r².' : 'Not yet. Read it off the fraction you were given.'};
+}
+const missingSide = P => ['x','y','r'].find(k => !FN[P.given].includes(k));
+
+/* ---------- explanations ---------- */
+function explainQuad(P){
+  const G = ratio(P[FN[P.given][0]],P[FN[P.given][1]]);
+  const pos = rVal(G) > 0, gq = quadsWhere(P.given,pos), cq = clueQuads(P.clue);
+  let c = P.clue.type==='interval'
+    ? '<p>The clue '+clueHTML(P.clue)+' puts θ in '+qlist(cq)+'.</p>'
+    : '<p>The clue '+clueHTML(P.clue)+' means '+P.clue.fn+' is '+(P.clue.pos?'positive':'negative')+', which happens in '+qlist(cq)+'.</p>';
+  return '<p>'+P.given+' θ is '+(pos?'positive':'negative')+', and '+P.given+' is '+(pos?'positive':'negative')+' in '+qlist(gq)+'.</p>'+c+
+    '<p><b>The only quadrant on both lists is '+qname(P.q)+'.</b></p>';
+}
+function explainSides(P){
+  const [t,b] = FN[P.given], G = ratio(P[t],P[b]);
+  const miss = missingSide(P);
+  let h = '<p>'+P.given+' θ = '+fracHTML(t,b)+' = '+fmtHTML(G)+'.</p>';
+  if ((t==='r'||b==='r') && rVal(G)<0){
+    const other = t==='r'?b:t;
+    h += '<p>r is a distance and is never negative, so the minus sign belongs to '+other+'.</p>';
+  } else {
+    h += '<p>In '+qname(P.q)+', x is '+(QX[P.q]>0?'positive':'negative')+' and y is '+(QY[P.q]>0?'positive':'negative')+'.</p>';
+  }
+  h += '<p>So <b>'+t+' = '+sideHTML(P[t])+'</b> and <b>'+b+' = '+sideHTML(P[b])+'</b>.</p>';
+  if (miss==='r'){
+    const s = sideSq(P.x)+sideSq(P.y);
+    h += '<p>Pythagoras: r² = x² + y² = '+sideSq(P.x)+' + '+sideSq(P.y)+' = '+s+', so <b>r = '+sideHTML(P.r)+'</b>'+(P.r.rad>1&&P.r.c>1?' (√'+s+' simplifies)':'')+'.</p>';
+  } else {
+    const leg = miss==='x'?'y':'x', d = sideSq(P.r)-sideSq(P[leg]);
+    const abs = S(Math.abs(P[miss].c),P[miss].rad);
+    h += '<p>Pythagoras: '+miss+'² + '+leg+'² = r², so '+miss+'² = '+sideSq(P.r)+' − '+sideSq(P[leg])+' = '+d+'. That gives '+miss+' = ±'+sideHTML(abs)+
+      (abs.rad>1&&abs.c>1?' (√'+d+' simplifies to '+sideText(abs)+')':'')+'.</p>';
+    h += '<p>In '+qname(P.q)+', '+miss+' is '+(sgnL(miss,P.q)>0?'positive':'negative')+', so <b>'+miss+' = '+sideHTML(P[miss])+'</b>.</p>';
+  }
+  return h;
+}
+function workFor(fn,P){
+  const [t,b] = FN[fn], R = ratio(P[t],P[b]);
+  let h = fn+' θ = '+t+'/'+b+' = '+fracHTML(sideHTML(P[t]),sideHTML(P[b]));
+  if (P[b].rad>1) h += ' → times √'+P[b].rad+'/√'+P[b].rad;
+  return h+' = '+fmtHTML(R);
+}
+
+/* ---------- problem view ---------- */
+let lastInput = null;
+function buildProblem(P, mount, onDone){
+  const st = {quad:false, wrongQ:0, sides:{x:false,y:false,r:false}, fns:{}};
+  ORDER.forEach(f => st.fns[f] = (f===P.given));
+  const G = ratio(P[FN[P.given][0]],P[FN[P.given][1]]);
+  const el = document.createElement('div');
+  el.className = 'prob';
+  const isPractice = P.label==='Practice';
+  el.innerHTML =
+    '<div class="prob-head"><h2>'+(isPractice?'Practice':'Problem '+P.label.slice(1))+'</h2>'+
+    '<div class="given"><span class="m">'+P.given+' θ = </span>'+fmtHTML(G)+', '+clueHTML(P.clue)+'</div></div>'+
+    '<div class="prob-grid">'+
+      '<div class="card plane-card"><svg class="plane" viewBox="-120 -120 240 240" role="img" aria-label="Coordinate plane"></svg><p class="cap"></p></div>'+
+      '<div class="stack">'+
+        '<div class="card step" data-s="1"><h3><span class="n">1</span>Which quadrant is θ in?</h3>'+
+          '<p class="muted" style="margin:0">Tap it on the graph or pick below.</p>'+
+          '<div class="qbtns">'+[1,2,3,4].map(q=>'<button class="btn" data-q="'+q+'">'+qname(q)+'</button>').join('')+'</div>'+
+          '<div class="fb"></div>'+
+          '<div class="row"><button class="btn ghost" data-act="hint1">Hint</button><button class="btn ghost" data-act="show1">Show me</button></div>'+
+          '<div class="explain"></div></div>'+
+        '<div class="card step locked" data-s="2"><h3><span class="n">2</span>Draw the triangle: what are x, y and r?</h3>'+
+          '<p class="muted" style="margin:0">Two come straight from the given fraction. The third comes from Pythagoras.</p>'+
+          '<div class="fields">'+['x','y','r'].map(k=>'<div class="field" data-k="'+k+'"><label>'+k+' =</label><input inputmode="text" autocomplete="off" spellcheck="false" aria-label="'+k+'"><div class="fb"></div></div>').join('')+'</div>'+
+          keysHTML()+
+          '<div class="row"><button class="btn primary" data-act="check2">Check</button><button class="btn ghost" data-act="hint2">Hint</button><button class="btn ghost" data-act="show2">Show me</button></div>'+
+          '<div class="explain"></div></div>'+
+        '<div class="card step locked" data-s="3"><h3><span class="n">3</span>Read off all six</h3>'+
+          '<p class="muted" style="margin:0">Each one is a side over a side. Press Enter or Check.</p>'+
+          '<div class="fns">'+ORDER.map(f=> f===P.given
+            ? '<div class="field ok" data-f="'+f+'"><label>'+f+' θ <small>given</small></label><div class="given-val">'+fmtHTML(G)+'</div></div>'
+            : '<div class="field" data-f="'+f+'"><label>'+f+' θ = <small>'+FN[f][0]+' / '+FN[f][1]+'</small></label><input inputmode="text" autocomplete="off" spellcheck="false" aria-label="'+f+' theta"><div class="fb"></div><div class="work"></div><button class="linkish" data-show="'+f+'">show this one</button></div>').join('')+'</div>'+
+          keysHTML()+
+          '<div class="row"><button class="btn primary" data-act="check3">Check all</button></div></div>'+
+        '<div class="card paper hidden"></div>'+
+      '</div>'+
+    '</div>';
+  mount.appendChild(el);
+
+  const svg = el.querySelector('svg.plane'), cap = el.querySelector('.cap');
+  const step = n => el.querySelector('.step[data-s="'+n+'"]');
+  const redraw = () => {
+    svg.innerHTML = planeSVG(P, st);
+    svg.classList.toggle('locked', st.quad);
+    cap.innerHTML = !st.quad ? 'Tap the quadrant where θ lives.'
+      : (st.sides.x&&st.sides.y&&st.sides.r) ? 'That\'s the triangle to draw on your paper.'
+      : 'Your triangle. Fill in the ? sides in step 2.';
+  };
+  redraw();
+
+  function pickQuad(q){
+    if (st.quad) return;
+    const fb = step(1).querySelector('.fb');
+    if (q===P.q){ st.quad=true; st.wrongQ=0; fb.className='fb ok'; fb.textContent='Yes, '+qname(q)+'.'; unlock2(); }
+    else {
+      const pos = rVal(G)>0, gq = quadsWhere(P.given,pos);
+      st.wrongQ = q; fb.className='fb bad';
+      fb.innerHTML = !gq.includes(q)
+        ? 'In '+qname(q)+', '+P.given+' is '+(pos?'negative':'positive')+'. Yours is '+(pos?'positive':'negative')+'.'
+        : 'That fits the sign of '+P.given+', but not the clue '+clueHTML(P.clue)+'.';
+    }
+    redraw();
+  }
+  function unlock2(){
+    step(1).classList.add('done');
+    step(1).querySelectorAll('.qbtns button').forEach(b=>{b.disabled=true; if(+b.dataset.q===P.q) b.classList.add('primary');});
+    step(2).classList.remove('locked');
+  }
+  svg.addEventListener('click', e => { const r = e.target.closest('[data-q]'); if (r) pickQuad(+r.dataset.q); });
+  step(1).querySelectorAll('.qbtns button').forEach(b => b.addEventListener('click', () => pickQuad(+b.dataset.q)));
+
+  function checkSides(onlyK){
+    ['x','y','r'].forEach(k => {
+      if (onlyK && k!==onlyK) return;
+      const f = step(2).querySelector('.field[data-k="'+k+'"]'), inp = f.querySelector('input'), fb = f.querySelector('.fb');
+      if (st.sides[k]) return;
+      if (!inp.value.trim()){ if(onlyK){fb.className='fb';fb.textContent='';} return; }
+      const r = checkSide(inp.value,k,P);
+      f.className = 'field '+r.st; fb.className='fb '+r.st; fb.textContent = r.msg;
+      if (r.st==='ok'){ st.sides[k]=true; inp.readOnly=true; }
+    });
+    redraw();
+    if (st.sides.x&&st.sides.y&&st.sides.r){ step(2).classList.add('done'); step(3).classList.remove('locked'); }
+  }
+  function checkFns(onlyF){
+    ORDER.forEach(fn => {
+      if (fn===P.given || st.fns[fn] || (onlyF && fn!==onlyF)) return;
+      const f = step(3).querySelector('.field[data-f="'+fn+'"]'), inp = f.querySelector('input'), fb = f.querySelector('.fb');
+      if (!inp.value.trim()) return;
+      const r = checkFn(inp.value,fn,P);
+      f.className = 'field '+(r.st==='note'?'ok':r.st); fb.className='fb '+r.st; fb.textContent = r.msg;
+      if (r.st==='ok'||r.st==='note'){ st.fns[fn]=true; inp.readOnly=true; f.querySelector('[data-show]').classList.add('hidden'); }
+    });
+    if (ORDER.every(f=>st.fns[f])) finish();
+  }
+  function finish(){
+    step(3).classList.add('done');
+    const paper = el.querySelector('.paper');
+    paper.classList.remove('hidden');
+    paper.innerHTML = '<h3>All six. Here\'s what goes on your paper.</h3>'+
+      '<p style="margin:0">Draw a right triangle in '+qname(P.q)+' with x = '+sideHTML(P.x)+' along the x-axis, y = '+sideHTML(P.y)+' going '+(P.y.c>0?'up':'down')+', and r = '+sideHTML(P.r)+' on the slanted side.</p>'+
+      '<ul>'+['sin','cos','tan','csc','sec','cot'].map(f=>'<li>'+f+' θ = '+fmtHTML(ratio(P[FN[f][0]],P[FN[f][1]]))+(f===P.given?' <span class="muted">(given)</span>':'')+'</li>').join('')+'</ul>'+
+      '<div class="row"><button class="btn primary" data-act="next">'+(isPractice?'Another practice problem →':'Next →')+'</button></div>';
+    paper.querySelector('[data-act="next"]').addEventListener('click', onDone.next);
+    onDone.mark && onDone.mark();
+  }
+
+  el.addEventListener('click', e => {
+    const a = e.target.closest('[data-act]'); const s = e.target.closest('[data-show]'); const kb = e.target.closest('[data-key]');
+    if (kb){ e.preventDefault(); insertKey(kb.dataset.key); return; }
+    if (s){
+      const fn = s.dataset.show, f = step(3).querySelector('.field[data-f="'+fn+'"]');
+      const R = ratio(P[FN[fn][0]],P[FN[fn][1]]);
+      f.querySelector('input').value = fmtText(R);
+      f.querySelector('.work').innerHTML = workFor(fn,P);
+      s.classList.add('hidden');
+      checkFns(fn);
+      return;
+    }
+    if (!a) return;
+    const act = a.dataset.act;
+    if (act==='hint1') step(1).querySelector('.explain').innerHTML = '<p>Two clues. First: is '+P.given+' θ positive or negative? That leaves two quadrants. Second: the clue after the comma. Find the quadrant where both are true. The "All Students Take Calculus" map on the Learn tab helps.</p>';
+    if (act==='show1'){ step(1).querySelector('.explain').innerHTML = explainQuad(P); pickQuad(P.q); }
+    if (act==='check2') checkSides();
+    if (act==='hint2'){
+      const [t,b] = FN[P.given];
+      step(2).querySelector('.explain').innerHTML = '<p>'+P.given+' θ = '+fracHTML(t,b)+', so '+t+' and '+b+' come right off the fraction '+fmtHTML(G)+' (a whole number like −4 is −4 over 1). Give them signs that match '+qname(P.q)+'. Remember r is never negative.</p><p>For '+missingSide(P)+', use x² + y² = r², then choose + or − from the quadrant.</p>';
+    }
+    if (act==='show2'){
+      step(2).querySelector('.explain').innerHTML = explainSides(P);
+      ['x','y','r'].forEach(k => { const inp = step(2).querySelector('.field[data-k="'+k+'"] input'); if (!st.sides[k]) inp.value = sideText(P[k]); });
+      checkSides();
+    }
+    if (act==='check3') checkFns();
+  });
+  el.addEventListener('keydown', e => {
+    if (e.key!=='Enter' || e.target.tagName!=='INPUT') return;
+    const f = e.target.closest('.field');
+    if (f.dataset.k) checkSides(f.dataset.k); else checkFns(f.dataset.f);
+    // jump to the next empty box
+    const all = [...el.querySelectorAll('.step:not(.locked) input:not([readonly])')];
+    const nxt = all.find(i => !i.value.trim());
+    if (nxt) nxt.focus();
+  });
+  el.addEventListener('focusin', e => { if (e.target.tagName==='INPUT') lastInput = e.target; });
+  return el;
+}
+function keysHTML(){
+  return '<div class="keys"><span>Type:</span><button data-key="√" aria-label="square root">√</button><button data-key="-" aria-label="minus">−</button><button data-key="/" aria-label="fraction bar">/</button><span>Answers like −√15/4 or 2√3/3.</span></div>';
+}
+function insertKey(k){
+  if (!lastInput || lastInput.readOnly) return;
+  const i = lastInput, s = i.selectionStart ?? i.value.length, e = i.selectionEnd ?? i.value.length;
+  i.value = i.value.slice(0,s)+k+i.value.slice(e);
+  i.focus(); i.setSelectionRange(s+k.length,s+k.length);
+}
+
+/* ---------- tabs ---------- */
+const tabs = document.getElementById('tabs'), views = document.getElementById('views');
+const TABS = [{id:'learn',label:'Learn it'}, ...WORKSHEET.map(p=>({id:p.id,label:p.label})), {id:'practice',label:'Practice'}];
+const doneSet = new Set();
+function renderTabs(cur){
+  tabs.innerHTML = TABS.map(t=>'<button data-tab="'+t.id+'" aria-selected="'+(t.id===cur)+'">'+t.label+(doneSet.has(t.id)?'<span class="tick">✓</span>':'')+'</button>').join('');
+}
+let current = 'learn';
+function show(id){
+  current = id;
+  document.querySelectorAll('#views > section').forEach(s => s.classList.toggle('hidden', s.id!=='view-'+id));
+  renderTabs(id);
+  window.scrollTo({top:0});
+}
+tabs.addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) show(b.dataset.tab); });
+document.addEventListener('click', e => { const g = e.target.closest('[data-goto]'); if (g) show(g.dataset.goto); });
+
+WORKSHEET.forEach((P,idx) => {
+  const sec = document.createElement('section'); sec.id = 'view-'+P.id; sec.className='hidden';
+  views.appendChild(sec);
+  const nextId = idx<WORKSHEET.length-1 ? WORKSHEET[idx+1].id : 'practice';
+  buildProblem(P, sec, {next:()=>show(nextId), mark:()=>{doneSet.add(P.id); renderTabs(current);}});
+});
+const prSec = document.createElement('section'); prSec.id='view-practice'; prSec.className='hidden';
+prSec.innerHTML = '<div class="card" style="margin-bottom:14px"><h2 style="margin:0 0 4px">Practice</h2><p class="muted" style="margin:0">Fresh problems, same four moves. Try to get one done without Hint or Show me. <span id="pr-score"></span></p></div><div id="pr-mount"></div>';
+views.appendChild(prSec);
+let prDone = 0;
+function newPractice(){
+  const m = document.getElementById('pr-mount'); m.innerHTML='';
+  buildProblem(makePractice(), m, {next:()=>{newPractice(); window.scrollTo({top:0});}, mark:()=>{prDone++; document.getElementById('pr-score').textContent='Done so far: '+prDone+'.';}});
+}
+newPractice();
+
+/* ---------- ASTC explorer ---------- */
+const astc = document.getElementById('astc'), info = document.getElementById('astc-info');
+function drawAstc(sel){ astc.innerHTML = planeSVG(null,null,{astc:true,sel}); }
+drawAstc(0);
+astc.addEventListener('click', e => {
+  const r = e.target.closest('[data-q]'); if (!r) return;
+  const q = +r.dataset.q; drawAstc(q);
+  const pos = ['sin','cos','tan','csc','sec','cot'].filter(f=>fnSign(f,q)>0), neg = ['sin','cos','tan','csc','sec','cot'].filter(f=>fnSign(f,q)<0);
+  info.innerHTML = '<p><b>'+qname(q)+'</b>: x is '+(QX[q]>0?'positive':'negative')+', y is '+(QY[q]>0?'positive':'negative')+'.</p>'+
+    '<p><b style="color:var(--ok)">Positive:</b> '+pos.join(', ')+'<br><b style="color:var(--bad)">Negative:</b> '+(neg.length?neg.join(', '):'none')+'</p>';
+});
+
+show('learn');
+window.__trig = {parseExpr, ratio, fmtText, WORKSHEET, makePractice, checkFn, checkSide};
+})();
+</script>
+</body>
+</html>
