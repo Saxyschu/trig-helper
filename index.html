@@ -137,6 +137,32 @@ button.linkish{font:inherit;font-size:13px;background:none;border:0;padding:0;co
 .hidden{display:none!important}
 .astc-info{min-height:84px}
 footer{margin-top:30px;font-size:13px;color:var(--muted)}
+
+/* scratch paper for the Apple Pencil */
+:root{--pad-bg:#fffefa;--pad-grid:#e4ecf6;--blue:#2f6fd6}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--pad-bg:#171b25;--pad-grid:#232a3a;--blue:#7fb0ff}}
+.pad-card{margin-top:16px;padding:12px}
+.pad-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.pad-bar .pad-title{font-size:17px;margin-right:4px}
+.pad-bar .pad-given{display:none;font-size:17px;margin-right:auto}
+.pad-bar .grow{flex:1}
+.pad-bar button{font:inherit;font-size:15px;font-weight:600;border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:40px}
+.pad-bar button.on{border-color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.pad-bar .dot{width:14px;height:14px;border-radius:50%;display:inline-block}
+.pad-bar button.danger{color:var(--bad)}
+.pad-wrap{position:relative;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background-color:var(--pad-bg);
+  background-image:linear-gradient(var(--pad-grid) 1px,transparent 1px),linear-gradient(90deg,var(--pad-grid) 1px,transparent 1px);background-size:24px 24px}
+canvas.pad{display:block;width:100%;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:crosshair}
+.pad-hint{font-size:13px;color:var(--muted);margin:6px 2px 0}
+.pad-card.full{position:fixed;inset:0;z-index:100;margin:0;border-radius:0;border:0;display:flex;flex-direction:column;
+  padding:max(10px,env(safe-area-inset-top)) 12px max(10px,env(safe-area-inset-bottom))}
+.pad-card.full .pad-wrap{flex:1}
+.pad-card.full .pad-given{display:inline}
+.pad-card.full .pad-title,.pad-card.full [data-pad="more"],.pad-card.full .pad-hint{display:none}
+body.pad-open{overflow:hidden}
+.fab{position:fixed;right:16px;bottom:max(16px,env(safe-area-inset-bottom));z-index:60;font:inherit;font-weight:700;font-size:16px;
+  background:var(--accent);color:#fff;border:0;border-radius:999px;padding:14px 20px;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer}
+body.pad-open .fab{display:none}
 </style>
 </head>
 <body>
@@ -210,6 +236,7 @@ footer{margin-top:30px;font-size:13px;color:var(--muted)}
   <div class="card">
     <h3>How to use this</h3>
     <p style="margin:0">Pick a problem up top. Each one walks you through the four moves, checks your answers as you go, and tells you <i>why</i> when something's off. Stuck? Hit <b>Hint</b> first, <b>Show me</b> second. Then do <b>Practice</b> until you can do one without hints, because the quiz won't have this page.</p>
+    <p style="margin:10px 0 0">On an iPad: every problem has <b>scratch paper</b> at the bottom for the Apple Pencil, and the pink <b>✎ Scratch paper</b> button opens it full screen. Your drawings stay put when you switch problems.</p>
     <div class="row"><button class="btn primary" data-goto="p4">Start with #4 →</button></div>
   </div>
 </section>
@@ -493,6 +520,8 @@ function buildProblem(P, mount, onDone){
       '</div>'+
     '</div>';
   mount.appendChild(el);
+  el.appendChild(buildPad(isPractice ? null : P.id,
+    '<span class="m">'+(isPractice?'':'#'+P.label.slice(1)+'  ')+P.given+' θ = </span>'+fmtHTML(G)+', '+clueHTML(P.clue)));
 
   const svg = el.querySelector('svg.plane'), cap = el.querySelector('.cap');
   const step = n => el.querySelector('.step[data-s="'+n+'"]');
@@ -602,6 +631,116 @@ function buildProblem(P, mount, onDone){
   el.addEventListener('focusin', e => { if (e.target.tagName==='INPUT') lastInput = e.target; });
   return el;
 }
+/* ---------- scratch paper (Apple Pencil, finger, mouse) ---------- */
+const PAD_START_H = 560, PAD_MORE = 400, PEN_W = 2.6, ERASER_W = 26;
+let penSeen = false; // once a Pencil touches any pad, fingers stop drawing (palm rejection)
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function buildPad(key, titleHTML){
+  const card = document.createElement('div');
+  card.className = 'card pad-card';
+  card.innerHTML =
+    '<div class="pad-bar"><b class="pad-title">Scratch paper</b><span class="pad-given">'+titleHTML+'</span><span class="grow"></span>'+
+    '<button data-tool="ink" class="on"><span class="dot" style="background:var(--ink)"></span>Pen</button>'+
+    '<button data-tool="pink"><span class="dot" style="background:var(--accent)"></span>Pink</button>'+
+    '<button data-tool="blue"><span class="dot" style="background:var(--blue)"></span>Blue</button>'+
+    '<button data-tool="eraser">Eraser</button>'+
+    '<button data-pad="undo">Undo</button>'+
+    '<button data-pad="clear" class="danger">Clear</button>'+
+    '<button data-pad="more">More room</button>'+
+    '<button data-pad="full">Full screen</button></div>'+
+    '<div class="pad-wrap"><canvas class="pad" aria-label="Scratch paper for drawing"></canvas></div>'+
+    '<p class="pad-hint">Draw your triangle and do the math here with the Pencil. Once the Pencil touches it, your hand won\'t leave marks. Scroll by touching outside the paper.</p>';
+  const canvas = card.querySelector('canvas'), wrap = card.querySelector('.pad-wrap'), ctx = canvas.getContext('2d');
+  const store = key ? 'trig-pad:'+key : null;
+  let strokes = [], h = PAD_START_H, tool = 'ink', cur = null, dpr = 1, lastW = 0;
+  try { if (store){ const d = JSON.parse(localStorage.getItem(store)||'null'); if (d){ strokes = d.s||[]; h = d.h||h; } } } catch(e){}
+  const colorOf = t => t==='pink' ? cssVar('--accent') : t==='blue' ? cssVar('--blue') : cssVar('--ink');
+  function seg(s,a,b){
+    ctx.globalCompositeOperation = s.t==='eraser' ? 'destination-out' : 'source-over';
+    ctx.strokeStyle = s.t==='eraser' ? '#000' : colorOf(s.t);
+    ctx.lineWidth = s.t==='eraser' ? ERASER_W : PEN_W*(0.45+b[2]*1.2);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+  }
+  function redraw(){
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for (const s of strokes){ const p = s.p; seg(s,p[0],p[0]); for (let i=1;i<p.length;i++) seg(s,p[i-1],p[i]); }
+  }
+  function size(){
+    const full = card.classList.contains('full');
+    const w = wrap.clientWidth, ch = full ? wrap.clientHeight : h;
+    if (!w) return;
+    dpr = Math.min(window.devicePixelRatio||1, 2);
+    canvas.style.height = ch+'px';
+    canvas.width = Math.round(w*dpr); canvas.height = Math.round(ch*dpr);
+    lastW = w; redraw();
+  }
+  let saveT = 0;
+  function save(){
+    if (!store) return;
+    clearTimeout(saveT);
+    saveT = setTimeout(() => { try { localStorage.setItem(store, JSON.stringify({h, s:strokes})); } catch(e){} }, 400);
+  }
+  function pt(e){
+    const r = canvas.getBoundingClientRect();
+    const p = e.pressure>0 ? e.pressure : 0.5;
+    return [Math.round((e.clientX-r.left)*10)/10, Math.round((e.clientY-r.top)*10)/10, Math.round(p*100)/100];
+  }
+  canvas.addEventListener('pointerdown', e => {
+    if (e.pointerType==='pen') penSeen = true;
+    if (e.pointerType==='touch' && penSeen) return;
+    if (e.button>0) return;
+    e.preventDefault();
+    try { canvas.setPointerCapture(e.pointerId); } catch(err){}
+    const p = pt(e);
+    cur = {t:tool, p:[p], id:e.pointerId};
+    strokes.push(cur);
+    ctx.setTransform(dpr,0,0,dpr,0,0); seg(cur,p,p);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!cur || e.pointerId!==cur.id) return;
+    e.preventDefault();
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    for (const ev of (evs.length?evs:[e])){ const p = pt(ev), last = cur.p[cur.p.length-1]; seg(cur,last,p); cur.p.push(p); }
+  });
+  const end = e => { if (cur && e.pointerId===cur.id){ delete cur.id; cur = null; save(); } };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+  // stop iOS scrolling, zooming and the magnifier while drawing on the paper
+  canvas.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
+  canvas.addEventListener('touchmove', e => e.preventDefault(), {passive:false});
+
+  let clearArm = 0;
+  card.querySelector('.pad-bar').addEventListener('click', e => {
+    const tb = e.target.closest('[data-tool]'), pb = e.target.closest('[data-pad]');
+    if (tb){ tool = tb.dataset.tool; card.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b===tb)); return; }
+    if (!pb) return;
+    const a = pb.dataset.pad;
+    if (a==='undo'){ strokes.pop(); redraw(); save(); }
+    if (a==='clear'){
+      if (Date.now()-clearArm < 3000){ strokes = []; redraw(); save(); pb.textContent = 'Clear'; clearArm = 0; }
+      else { clearArm = Date.now(); pb.textContent = 'Tap again to clear'; setTimeout(() => { pb.textContent = 'Clear'; }, 3000); }
+    }
+    if (a==='more'){ h += PAD_MORE; size(); save(); }
+    if (a==='full') toggleFull();
+  });
+  function toggleFull(force){
+    const on = force===undefined ? !card.classList.contains('full') : force;
+    card.classList.toggle('full', on);
+    document.body.classList.toggle('pad-open', on);
+    card.querySelector('[data-pad="full"]').textContent = on ? 'Done' : 'Full screen';
+    requestAnimationFrame(size);
+  }
+  card.openFull = () => toggleFull(true);
+  document.addEventListener('keydown', e => { if (e.key==='Escape' && card.classList.contains('full')) toggleFull(false); });
+  new ResizeObserver(() => { if (card.classList.contains('full') || wrap.clientWidth!==lastW) size(); }).observe(wrap);
+  window.addEventListener('pageshow', size);
+  return card;
+}
+
 function keysHTML(){
   return '<div class="keys"><span>Type:</span><button data-key="√" aria-label="square root">√</button><button data-key="-" aria-label="minus">−</button><button data-key="/" aria-label="fraction bar">/</button><span>Answers like −√15/4 or 2√3/3.</span></div>';
 }
@@ -624,8 +763,16 @@ function show(id){
   current = id;
   document.querySelectorAll('#views > section').forEach(s => s.classList.toggle('hidden', s.id!=='view-'+id));
   renderTabs(id);
+  fab.classList.toggle('hidden', id==='learn');
   window.scrollTo({top:0});
 }
+const fab = document.createElement('button');
+fab.className = 'fab hidden'; fab.type = 'button'; fab.textContent = '✎ Scratch paper';
+fab.addEventListener('click', () => {
+  const pad = document.querySelector('#view-'+current+' .pad-card');
+  if (pad) pad.openFull();
+});
+document.body.appendChild(fab);
 tabs.addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) show(b.dataset.tab); });
 document.addEventListener('click', e => { const g = e.target.closest('[data-goto]'); if (g) show(g.dataset.goto); });
 
